@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.JTextArea;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -18,8 +20,6 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.alibaba.fastjson.JSONObject;
 import com.cl1199.dao.BetDao;
@@ -30,19 +30,21 @@ import com.cl1199.util.AESUtil;
 
 
 public class Api {
-	private final static Logger logger = LoggerFactory.getLogger(Api.class);
 	// Cookie自动维护对象
 	private CookieStore cookieStore = new BasicCookieStore();
 	private HttpClient client = HttpClients.custom().setDefaultCookieStore(cookieStore).build();	
-	private static String identity = null;
+	private static String identity = null;	
+	private static String betMultiple = "1";//倍数	
+	private static String moneyUnit = "7";//金额
 	/**
 	 * 下注请求参数
 	 */
 	private String loginName;
 	private String pwd;
-	private String betMultiple; 
-	private String moneyUnit;
 	private String betBonusGroup;	
+	private JTextArea logArea;
+	private boolean stop;
+	private String roadBox;
 	/**
 	 * 请求地址
 	 */
@@ -51,18 +53,12 @@ public class Api {
 	private static String doHistoryUrl = "https://cl1199.com/lottery/lotterycode";//开奖历史接口
 	private static String doSaleissueUrl = "https://cl1199.com/lottery/saleissue";//当前信息
 
-	public Api(String loginName , String pwd , String betMultiple, String moneyUnit, String betBonusGroup) {
-		this.loginName = loginName;
-		this.pwd = pwd;
-		this.betMultiple = betMultiple;
-		this.moneyUnit = moneyUnit;
-		this.moneyUnit = moneyUnit;
+	public Api(String betBonusGroup) {
 		this.betBonusGroup = betBonusGroup;
 	}
 
 	public void doIt() {
-		doLogin();
-		doBet();
+		doLogin();		
 	}
 	
 	/**
@@ -75,20 +71,23 @@ public class Api {
 			LoginDao loginDao = JSONObject.parseObject(AESUtil.aesDecodeStr(loginStr), LoginDao.class);
 			if (loginDao.getStatus() == 1) {
 				identity = loginDao.getData().getKey();
+				logArea.append("登陆成功》》》》》》》》开始下注\n");
+				Thread.sleep(3000);
+				doBet();	
 			}else {
-				logger.info("登陆失败》》》》》》》》原因："+loginDao.getMsg());
+				logArea.append("登陆失败》》》》》》》》原因："+loginDao.getMsg()+"\n");
 			}
 		} catch (Exception e) {
-			logger.error("登陆异常》》》》》》》》",e);
+			logArea.append("登陆异常》》》》》》》》"+e+"\n");
 		}
-		
+		logArea.setCaretPosition( logArea.getDocument().getLength());		
 	}
 	
 	/**
 	 * 下注
 	 */
 	public void doBet() {
-		while (true) {
+		while (!stop) {
 			try {
 				HttpResponse responseHistory = this.client.execute(getHttpPost(doHistoryUrl, 2, null, null));	
 				HistoryDao historyDao = JSONObject.parseObject(AESUtil.aesDecodeStr(EntityUtils.toString(responseHistory.getEntity(), Charset.defaultCharset())), HistoryDao.class);
@@ -97,21 +96,25 @@ public class Api {
 				SaleissueDao saleissueDao = JSONObject.parseObject(AESUtil.aesDecodeStr(EntityUtils.toString(responseSaleissue.getEntity(), Charset.defaultCharset())), SaleissueDao.class);
 				
 				if (historyDao.getStatus() == 1 && saleissueDao.getStatus() == 1) {
-					HttpResponse responseBet = this.client.execute(getHttpPost(doBetUrl, 3, saleissueDao.getData().getIssue(), historyDao.getData().get(0).getCodes().length()>7?historyDao.getData().get(0).getCodes().substring(0, 6):historyDao.getData().get(0).getCodes()));
+					String betCodes = "";
+					HttpResponse responseBet = this.client.execute(getHttpPost(doBetUrl, 3, saleissueDao.getData().getIssue(), betCodes));
 					String respStr = EntityUtils.toString(responseBet.getEntity(), Charset.defaultCharset());
 					BetDao betDao = JSONObject.parseObject(AESUtil.aesDecodeStr(respStr), BetDao.class);				
 					if (betDao.getStatus() == 1) {
-						System.out.println("下注成功!!!》》》订单号："+betDao.getData()[0]);
+						System.out.println();
+						logArea.append("下注成功!!!》》》剩余金额： "+Double.parseDouble(saleissueDao.getUser().getAvaiableAmount())+"》》》》订单号："+betDao.getData()[0]+"\n");
 					}else {
-						System.out.println("下注失败!!!》》》》》》》》》"+betDao.getMsg());
+						logArea.append("下注失败!!!》》》》》》》》》原因："+betDao.getMsg()+"\n");
 					}
 				}else {
-					logger.info("登查询失败》》》》》》》》原因："+historyDao.getMsg());
+					logArea.append("查询失败》》》》》》》》原因："+historyDao.getMsg()+"\n");
 				}
 			} catch (Exception e) {
-				logger.error(e.getMessage(),e);
+				logArea.append("异常》》》》》》》》"+e+"\n");
 			}
+			logArea.setCaretPosition( logArea.getDocument().getLength());
 		}	
+		logArea.append("==============任务结束================\n");
 	}
 	
 	private HttpPost getHttpPost(String url, int flag, String Issue, String betCodes) {
@@ -141,7 +144,7 @@ public class Api {
 			nvps.add(new BasicNameValuePair("IsChase", "false"));
 			nvps.add(new BasicNameValuePair("IsStopAfterWin", "true"));
 			nvps.add(new BasicNameValuePair("IsAllIn", "false"));
-			nvps.add(new BasicNameValuePair("LstOrder[0][PlayType]", "800"));
+			nvps.add(new BasicNameValuePair("LstOrder[0][PlayType]", "836"));
 			nvps.add(new BasicNameValuePair("LstOrder[0][BetPlan]", ""));
 			nvps.add(new BasicNameValuePair("LstOrder[0][IsZip]", "false"));
 			nvps.add(new BasicNameValuePair("LstOrder[0][BetBonusGroup]", betBonusGroup));
@@ -157,4 +160,16 @@ public class Api {
 		httpPost.setEntity(new UrlEncodedFormEntity(nvps, Charset.forName("UTF-8")));
 		return httpPost;
 	}
+	
+	public void stopByMark() {		
+        stop = true;
+    }
+	
+	public void startByMark(String loginName, String pwd, JTextArea logArea, String roadBox) {
+		this.loginName = loginName;
+		this.pwd = pwd;
+		this.logArea = logArea;
+		this.roadBox = roadBox;
+        stop = false;
+    }
 }
