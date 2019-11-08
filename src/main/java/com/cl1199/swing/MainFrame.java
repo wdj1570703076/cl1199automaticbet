@@ -66,6 +66,17 @@ public class MainFrame extends JFrame {
     private JRadioButton jiaoRadio = new JRadioButton("角");
     
     private JRadioButton fenRadio = new JRadioButton("分",true);
+    
+    private JCheckBox item1 = new JCheckBox("1");
+    private JCheckBox item2 = new JCheckBox("2");
+    private JCheckBox item3 = new JCheckBox("3");
+    private JCheckBox item4 = new JCheckBox("4");
+    private JCheckBox item5 = new JCheckBox("5");
+    private JCheckBox item6 = new JCheckBox("6");
+    private JCheckBox item7 = new JCheckBox("7");
+    private JCheckBox item8 = new JCheckBox("8");
+    private JCheckBox item9 = new JCheckBox("9");
+    private JCheckBox item10 = new JCheckBox("10");
     public MainFrame(){
         //上下布局
         this.setLayout(new FlowLayout());
@@ -138,21 +149,50 @@ public class MainFrame extends JFrame {
         Api api = new Api(betBonusGroup);
         //监听事件开始
         startButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-            	int moneny = 0;
-            	if (yuanRadio.isSelected()) {
-					moneny = 1;
-				}
-            	if (jiaoRadio.isSelected()) {
-            		moneny = 2;
-				}
-            	if (fenRadio.isSelected()) {
-            		moneny = 3;
-				}
-            	api.startByMark(userText.getText(), new String(passText.getPassword()), logArea, (String)roadBox.getSelectedItem());
-            	
+            public void actionPerformed(ActionEvent e) {         	
             	if (thread == null) {
-            		
+            		String moneny = "";
+                	if (yuanRadio.isSelected()) {
+    					moneny = "5";
+    				}
+                	if (jiaoRadio.isSelected()) {
+                		moneny = "6";
+    				}
+                	if (fenRadio.isSelected()) {
+                		moneny = "7";
+    				}
+                	StringBuilder codes = new StringBuilder();
+                	if (item1.isSelected()) {
+                		codes.append(1+" ");
+    				}
+    				if (item2.isSelected()) {
+    					codes.append(2+" ");				
+    				}
+    				if (item3.isSelected()) {
+    					codes.append(3+" ");
+    				}
+    				if (item4.isSelected()) {
+    					codes.append(4+" ");
+    				}
+    				if (item5.isSelected()) {
+    					codes.append(5+" ");
+    				}
+    				if (item6.isSelected()) {
+    					codes.append(6+" ");
+    				}
+    				if (item7.isSelected()) {
+    					codes.append(7+" ");
+    				}
+    				if (item8.isSelected()) {
+    					codes.append(8+" ");
+    				}
+    				if (item9.isSelected()) {
+    					codes.append(9+" ");
+    				}
+    				if (item10.isSelected()) {
+    					codes.append(10+" ");
+    				}
+                	api.startByMark(userText.getText(), new String(passText.getPassword()), logArea, (String)roadBox.getSelectedItem(), codes.toString(), moneny, betField.getText());
             		thread = new Thread(new Runnable() {					
     					@Override
     					public void run() {
@@ -160,9 +200,8 @@ public class MainFrame extends JFrame {
     					}
     				});
                 	thread.start();
-                	System.out.println(thread.getState());
 				}else {
-					logArea.append("==============程序已启动，请稍后重试!!===================\n");
+					logArea.append("==============程序已启动，请结束后重新开始!!===================\n");
 				}
             }
         });
@@ -172,6 +211,12 @@ public class MainFrame extends JFrame {
             public void actionPerformed(ActionEvent e) {
             	api.stopByMark();
             	thread = null;
+            	try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					e1.printStackTrace();
+				}
+            	logArea.append("======================程序已结束=========================\n");
             }
         });
 
@@ -218,16 +263,7 @@ public class MainFrame extends JFrame {
 
     private void createHorseNumberPanel() {
         horseNumberPanel.setBorder(BorderFactory.createTitledBorder("跑马选择:"));
-        JCheckBox item1 = new JCheckBox("1");
-        JCheckBox item2 = new JCheckBox("2");
-        JCheckBox item3 = new JCheckBox("3");
-        JCheckBox item4 = new JCheckBox("4");
-        JCheckBox item5 = new JCheckBox("5");
-        JCheckBox item6 = new JCheckBox("6");
-        JCheckBox item7 = new JCheckBox("7");
-        JCheckBox item8 = new JCheckBox("8");
-        JCheckBox item9 = new JCheckBox("9");
-        JCheckBox item10 = new JCheckBox("10");
+        
         horseNumberPanel.add(item1);
         horseNumberPanel.add(item2);
         horseNumberPanel.add(item3);

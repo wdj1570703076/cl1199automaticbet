@@ -1,6 +1,8 @@
 package com.cl1199.service;
 
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,9 +35,7 @@ public class Api {
 	// Cookie自动维护对象
 	private CookieStore cookieStore = new BasicCookieStore();
 	private HttpClient client = HttpClients.custom().setDefaultCookieStore(cookieStore).build();	
-	private static String identity = null;	
-	private static String betMultiple = "1";//倍数	
-	private static String moneyUnit = "7";//金额
+	private static String identity = null;		
 	/**
 	 * 下注请求参数
 	 */
@@ -45,6 +45,9 @@ public class Api {
 	private JTextArea logArea;
 	private boolean stop;
 	private String roadBox;
+	private String codes;
+	private String betMultiple;//倍数	
+	private String moneyUnit;//金额
 	/**
 	 * 请求地址
 	 */
@@ -95,14 +98,73 @@ public class Api {
 				HttpResponse responseSaleissue = this.client.execute(getHttpPost(doSaleissueUrl, 4, null, null));	
 				SaleissueDao saleissueDao = JSONObject.parseObject(AESUtil.aesDecodeStr(EntityUtils.toString(responseSaleissue.getEntity(), Charset.defaultCharset())), SaleissueDao.class);
 				
-				if (historyDao.getStatus() == 1 && saleissueDao.getStatus() == 1) {
-					String betCodes = "";
-					HttpResponse responseBet = this.client.execute(getHttpPost(doBetUrl, 3, saleissueDao.getData().getIssue(), betCodes));
+				if (historyDao.getStatus() == 1 && saleissueDao.getStatus() == 1) {					
+					StringBuffer betCodes = new StringBuffer();
+					StringBuffer betCodes2 = new StringBuffer();
+					if (StringUtils.isBlank(codes)) {
+						
+						String[] strCodes = historyDao.getData().get(0).getCodes().split(",");
+						for(int i=0;i<5;i++) {
+							betCodes.append(strCodes[i]+" ");
+						}
+					}else {
+						betCodes.append(codes);
+					}
+					switch (roadBox) {
+					case "冠军":
+						betCodes2.append(betCodes);
+						betCodes2.append(",,,,,,,,,");
+						break;
+					case "亚军":
+						betCodes2.append(",");
+						betCodes2.append(betCodes);
+						betCodes2.append(",,,,,,,,");
+						break;
+					case "季军":
+						betCodes2.append(",,");
+						betCodes2.append(betCodes);
+						betCodes2.append(",,,,,,,");
+						break;
+					case "第四名":
+						betCodes2.append(",,,");
+						betCodes2.append(betCodes);
+						betCodes2.append(",,,,,,");
+						break;
+					case "第五名":
+						betCodes2.append(",,,,");
+						betCodes2.append(betCodes);
+						betCodes2.append(",,,,,");
+						break;
+					case "第六名":
+						betCodes2.append(",,,,,");
+						betCodes2.append(betCodes);
+						betCodes2.append(",,,,");
+						break;
+					case "第七名":
+						betCodes2.append(",,,,,,");
+						betCodes2.append(betCodes);
+						betCodes2.append(",,,");
+						break;
+					case "第八名":
+						betCodes2.append(",,,,,,,");
+						betCodes2.append(betCodes);
+						betCodes2.append(",,");
+						break;
+					case "第九名":
+						betCodes2.append(",,,,,,,,");
+						betCodes2.append(betCodes);
+						betCodes2.append(",");
+						break;
+					case "第十名":
+						betCodes2.append(",,,,,,,,,");
+						betCodes2.append(betCodes);
+						break;
+					}
+					HttpResponse responseBet = this.client.execute(getHttpPost(doBetUrl, 3, saleissueDao.getData().getIssue(), betCodes2.toString()));
 					String respStr = EntityUtils.toString(responseBet.getEntity(), Charset.defaultCharset());
 					BetDao betDao = JSONObject.parseObject(AESUtil.aesDecodeStr(respStr), BetDao.class);				
 					if (betDao.getStatus() == 1) {
-						System.out.println();
-						logArea.append("下注成功!!!》》》剩余金额： "+Double.parseDouble(saleissueDao.getUser().getAvaiableAmount())+"》》》》订单号："+betDao.getData()[0]+"\n");
+						logArea.append("下注成功!!!》》》剩余金额： "+new DecimalFormat("0.00").format(new BigDecimal(saleissueDao.getUser().getAvaiableAmount()))+"》》》》订单号："+betDao.getData()[0]+"\n");
 					}else {
 						logArea.append("下注失败!!!》》》》》》》》》原因："+betDao.getMsg()+"\n");
 					}
@@ -113,8 +175,7 @@ public class Api {
 				logArea.append("异常》》》》》》》》"+e+"\n");
 			}
 			logArea.setCaretPosition( logArea.getDocument().getLength());
-		}	
-		logArea.append("==============任务结束================\n");
+		}
 	}
 	
 	private HttpPost getHttpPost(String url, int flag, String Issue, String betCodes) {
@@ -165,11 +226,14 @@ public class Api {
         stop = true;
     }
 	
-	public void startByMark(String loginName, String pwd, JTextArea logArea, String roadBox) {
+	public void startByMark(String loginName, String pwd, JTextArea logArea, String roadBox, String codes, String betMultiple, String moneyUnit) {
 		this.loginName = loginName;
 		this.pwd = pwd;
 		this.logArea = logArea;
 		this.roadBox = roadBox;
+		this.codes = codes;
+		this.betMultiple = betMultiple;
+		this.moneyUnit = moneyUnit;
         stop = false;
     }
 }
