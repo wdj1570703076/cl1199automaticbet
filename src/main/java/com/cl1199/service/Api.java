@@ -169,7 +169,6 @@ public class Api {
 					}else {
 						logArea.append("下注失败!!!》》》》》》》》》原因："+betDao.getMsg()+"\n");
 					}
-					k++;
 					int time = Integer.parseInt(saleissueDao.getData().getCountDown());
 					while(!stop){
 						Thread.sleep(2000);
@@ -187,6 +186,7 @@ public class Api {
 						OrderdetailsBean orderdetailsBean = JSONObject.parseObject(AESUtil.aesDecodeStr(EntityUtils.toString(responseGetorderdetails.getEntity(), Charset.defaultCharset())), OrderdetailsBean.class);
 						if(orderdetailsBean.getData().getStatus() != 1){
 							if (orderdetailsBean.getData().getStatus() == 8){
+                                k++;
 								logArea.append("你未中奖,再接再厉！！\n");
 								betMultipleTo = betMultiple.split(",")[k];
 							}else if(orderdetailsBean.getData().getStatus() == 9) {
