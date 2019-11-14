@@ -190,6 +190,7 @@ public class Api {
 								logArea.append("你未中奖,再接再厉！！\n");
 								betMultipleTo = betMultiple.split(",")[k];
 							}else if(orderdetailsBean.getData().getStatus() == 9) {
+								k = 0;
 								logArea.append("你中奖了,恭喜！！\n");
 								betMultipleTo = betMultiple.split(",")[0];
 							}
