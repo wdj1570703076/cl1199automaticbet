@@ -207,7 +207,7 @@ public class MainFrame extends JFrame {
             	api.stopByMark();
             	thread = null;
             	try {
-					Thread.sleep(1000);
+					Thread.sleep(2000);
 				} catch (InterruptedException e1) {
 					e1.printStackTrace();
 				}
