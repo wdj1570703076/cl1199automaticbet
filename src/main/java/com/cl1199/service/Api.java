@@ -10,6 +10,7 @@ import java.util.Map;
 
 import javax.swing.JTextArea;
 
+import com.cl1199.dao.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -24,10 +25,6 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import com.alibaba.fastjson.JSONObject;
-import com.cl1199.dao.BetDao;
-import com.cl1199.dao.HistoryDao;
-import com.cl1199.dao.LoginDao;
-import com.cl1199.dao.SaleissueDao;
 import com.cl1199.util.AESUtil;
 
 
@@ -55,6 +52,7 @@ public class Api {
 	private static String doBetUrl = "https://cl1199.com/lottery/bet";//下注地址
 	private static String doHistoryUrl = "https://cl1199.com/lottery/lotterycode";//开奖历史接口
 	private static String doSaleissueUrl = "https://cl1199.com/lottery/saleissue";//当前信息
+	private static String doGetorderdetailsUrl = "https://cl1199.com/lottery/getorderdetails";//开奖信息
 
 	public Api(String betBonusGroup) {
 		this.betBonusGroup = betBonusGroup;
@@ -69,7 +67,7 @@ public class Api {
 	 */
 	public void doLogin() {		
 		try {
-			HttpResponse responseLogin = this.client.execute(getHttpPost(doLoginUrl, 1, null, null));
+			HttpResponse responseLogin = this.client.execute(getHttpPost(doLoginUrl, 1, null, null, null, null));
 			String loginStr = EntityUtils.toString(responseLogin.getEntity(), Charset.defaultCharset());
 			LoginDao loginDao = JSONObject.parseObject(AESUtil.aesDecodeStr(loginStr), LoginDao.class);
 			if (loginDao.getStatus() == 1) {
@@ -90,15 +88,18 @@ public class Api {
 	 * 下注
 	 */
 	public void doBet() {
+		int k = 0;
+		String betMultipleTo = betMultiple.split(",")[0];
 		while (!stop) {
 			try {
-				HttpResponse responseHistory = this.client.execute(getHttpPost(doHistoryUrl, 2, null, null));	
+				HttpResponse responseHistory = this.client.execute(getHttpPost(doHistoryUrl, 2, null, null, null, null));
 				HistoryDao historyDao = JSONObject.parseObject(AESUtil.aesDecodeStr(EntityUtils.toString(responseHistory.getEntity(), Charset.defaultCharset())), HistoryDao.class);
 				
-				HttpResponse responseSaleissue = this.client.execute(getHttpPost(doSaleissueUrl, 4, null, null));	
+				HttpResponse responseSaleissue = this.client.execute(getHttpPost(doSaleissueUrl, 4, null, null, null, null));
 				SaleissueDao saleissueDao = JSONObject.parseObject(AESUtil.aesDecodeStr(EntityUtils.toString(responseSaleissue.getEntity(), Charset.defaultCharset())), SaleissueDao.class);
-				
-				if (historyDao.getStatus() == 1 && saleissueDao.getStatus() == 1) {					
+
+				if (historyDao.getStatus() == 1 && saleissueDao.getStatus() == 1) {
+
 					StringBuffer betCodes = new StringBuffer();
 					StringBuffer betCodes2 = new StringBuffer();
 					if (StringUtils.isBlank(codes)) {
@@ -160,17 +161,46 @@ public class Api {
 						betCodes2.append(betCodes);
 						break;
 					}
-					HttpResponse responseBet = this.client.execute(getHttpPost(doBetUrl, 3, saleissueDao.getData().getIssue(), betCodes2.toString()));
+					HttpResponse responseBet = this.client.execute(getHttpPost(doBetUrl, 3, saleissueDao.getData().getIssue(), betCodes2.toString(), betMultipleTo, null));
 					String respStr = EntityUtils.toString(responseBet.getEntity(), Charset.defaultCharset());
 					BetDao betDao = JSONObject.parseObject(AESUtil.aesDecodeStr(respStr), BetDao.class);				
 					if (betDao.getStatus() == 1) {
-						logArea.append("下注成功!!!》》》剩余金额： "+new DecimalFormat("0.00").format(new BigDecimal(saleissueDao.getUser().getAvaiableAmount()))+"》》》》订单号："+betDao.getData()[0]+"\n");
+						logArea.append("下注成功!!!》》》剩余金额： "+saleissueDao.getUser().getAvaiableAmountStr()+"》》》》订单号："+betDao.getData()[0]+"\n");
 					}else {
 						logArea.append("下注失败!!!》》》》》》》》》原因："+betDao.getMsg()+"\n");
+					}
+					k++;
+					int time = Integer.parseInt(saleissueDao.getData().getCountDown());
+					while(!stop){
+						Thread.sleep(2000);
+						time = time - 2;
+						logArea.append("等待开奖。。。。剩余开奖时间:"+(time<0?0:time)+"\n");
+						if (time <= 0){
+							break;
+						}
+						logArea.setCaretPosition( logArea.getDocument().getLength());
+					}
+					while (!stop){
+						Thread.sleep(2000);
+						logArea.append("等待开奖。。。。剩余开奖时间:0"+"\n");
+						HttpResponse responseGetorderdetails = this.client.execute(getHttpPost(doGetorderdetailsUrl, 5, null, null, null, betDao.getData()[0]));
+						OrderdetailsBean orderdetailsBean = JSONObject.parseObject(AESUtil.aesDecodeStr(EntityUtils.toString(responseGetorderdetails.getEntity(), Charset.defaultCharset())), OrderdetailsBean.class);
+						if(orderdetailsBean.getData().getStatus() != 1){
+							if (orderdetailsBean.getData().getStatus() == 8){
+								logArea.append("你未中奖,再接再厉！！\n");
+								betMultipleTo = betMultiple.split(",")[k];
+							}else if(orderdetailsBean.getData().getStatus() == 9) {
+								logArea.append("你中奖了,恭喜！！\n");
+								betMultipleTo = betMultiple.split(",")[0];
+							}
+							break;
+						}
+						logArea.setCaretPosition( logArea.getDocument().getLength());
 					}
 				}else {
 					logArea.append("查询失败》》》》》》》》原因："+historyDao.getMsg()+"\n");
 				}
+
 			} catch (Exception e) {
 				logArea.append("异常》》》》》》》》"+e+"\n");
 			}
@@ -178,7 +208,7 @@ public class Api {
 		}
 	}
 	
-	private HttpPost getHttpPost(String url, int flag, String Issue, String betCodes) {
+	private HttpPost getHttpPost(String url, int flag, String Issue, String betCodes, String betMultipleTo, String id) {
 		HttpPost httpPost = new HttpPost(url);
 		Map<String, String> headerParams = new HashMap<String, String>();
 		if (flag!=1 && StringUtils.isBlank(identity)) {
@@ -210,12 +240,15 @@ public class Api {
 			nvps.add(new BasicNameValuePair("LstOrder[0][IsZip]", "false"));
 			nvps.add(new BasicNameValuePair("LstOrder[0][BetBonusGroup]", betBonusGroup));
 			nvps.add(new BasicNameValuePair("LstOrder[0][MoneyUnit]", moneyUnit));
-			nvps.add(new BasicNameValuePair("LstOrder[0][BetMultiple]", betMultiple));
+			nvps.add(new BasicNameValuePair("LstOrder[0][BetMultiple]", betMultipleTo));
 			nvps.add(new BasicNameValuePair("Issue", Issue));
 			nvps.add(new BasicNameValuePair("LstOrder[0][BetCodes]", betCodes));
 			break;
 		case 4:
 			nvps.add(new BasicNameValuePair("type", "430"));
+			break;
+		case 5:
+			nvps.add(new BasicNameValuePair("id", id));
 			break;
 		}
 		httpPost.setEntity(new UrlEncodedFormEntity(nvps, Charset.forName("UTF-8")));

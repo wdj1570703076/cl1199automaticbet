@@ -107,13 +107,8 @@ public class MainFrame extends JFrame {
     }
 
     private void init() {
-    	NumberFormat longFormat = NumberFormat.getIntegerInstance();
-    	NumberFormatter numberFormatter = new NumberFormatter(longFormat);
-    	numberFormatter.setValueClass(Long.class);
-    	numberFormatter.setAllowsInvalid(false);
-    	numberFormatter.setMinimum(1l);
     	logArea.setEditable(false);
-    	betField = new JFormattedTextField(numberFormatter);
+    	betField = new JFormattedTextField();
     	betField.setPreferredSize(new Dimension(100, 25));
         initTopPanel();
         initBottomPanel();
@@ -192,7 +187,7 @@ public class MainFrame extends JFrame {
     				if (item10.isSelected()) {
     					codes.append(10+" ");
     				}
-                	api.startByMark(userText.getText(), new String(passText.getPassword()), logArea, (String)roadBox.getSelectedItem(), codes.toString(), moneny, betField.getText());
+                	api.startByMark(userText.getText(), new String(passText.getPassword()), logArea, (String)roadBox.getSelectedItem(), codes.toString(), betField.getText(), moneny);
             		thread = new Thread(new Runnable() {					
     					@Override
     					public void run() {
